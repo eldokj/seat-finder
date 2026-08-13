@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find My Seat</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --ink:#16233F;
+    --ink-soft:#3C4A6B;
+    --paper:#FAF7F0;
+    --paper-2:#F1ECDE;
+    --gold:#C9A227;
+    --green:#2F6F4E;
+    --red:#A83A3A;
+    --line:#D8D0BC;
+    --mono: 'Courier New', Courier, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--paper-2);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(22,35,63,0.06) 1px, transparent 0);
+    background-size: 14px 14px;
+    font-family: Georgia, 'Times New Roman', serif;
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 32px 16px 80px;
+  }
+  h1{
+    font-family: Georgia, serif;
+    font-weight:700;
+    font-size: clamp(24px, 5vw, 34px);
+    letter-spacing: 0.5px;
+    margin: 0 0 4px;
+    text-align:center;
+  }
+  .eyebrow{
+    font-family: var(--mono);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--gold);
+    margin-bottom: 10px;
+  }
+  .sub{
+    color: var(--ink-soft);
+    font-size: 14px;
+    text-align:center;
+    max-width: 420px;
+    margin: 0 0 28px;
+  }
+  .search-box{
+    width: 100%;
+    max-width: 420px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 2px 0 var(--line);
+  }
+  .search-row{
+    display:flex;
+    gap:8px;
+  }
+  input[type=text]{
+    flex:1;
+    font-family: var(--mono);
+    font-size: 18px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: white;
+    color: var(--ink);
+  }
+  input[type=text]:focus{
+    outline: 2px solid var(--gold);
+    outline-offset: 1px;
+  }
+  button.find{
+    font-family: Georgia, serif;
+    font-weight:700;
+    font-size: 15px;
+    background: var(--ink);
+    color: var(--paper);
+    border:none;
+    border-radius: 6px;
+    padding: 12px 20px;
+    cursor:pointer;
+  }
+  button.find:hover{ background: var(--ink-soft); }
+  .hint{
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+  }
+  .msg{
+    max-width: 420px;
+    width:100%;
+    text-align:center;
+    margin-top: 16px;
+    font-size: 14px;
+    color: var(--red);
+    display:none;
+  }
+
+  /* ---- Ticket / boarding pass result ---- */
+  .ticket-wrap{
+    margin-top: 26px;
+    width: 100%;
+    max-width: 460px;
+    display:none;
+  }
+  .ticket{
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    display: flex;
+    box-shadow: 0 8px 24px rgba(22,35,63,0.14);
+    overflow:hidden;
+    animation: rise 0.35s ease;
+  }
+  @keyframes rise{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+  .ticket-main{
+    flex: 1;
+    padding: 22px 20px;
+  }
+  .ticket-main .name{
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 2px;
+  }
+  .ticket-main .reg{
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .field-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 10px;
+  }
+  .field-grid .field{
+    border-top: 1px solid var(--line);
+    padding-top: 8px;
+  }
+  .field .label{
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--gold);
+  }
+  .field .value{
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .ticket-stub{
+    width: 120px;
+    background: var(--ink);
+    color: var(--paper);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap: 4px;
+    position:relative;
+  }
+  .ticket-stub::before{
+    content:"";
+    position:absolute;
+    left:-1px; top:0; bottom:0;
+    width:0;
+    border-left: 2px dashed rgba(250,247,240,0.35);
+  }
+  .stub-label{
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+  .stub-seat{
+    font-family: var(--mono);
+    font-size: 34px;
+    font-weight:700;
+    line-height:1;
+  }
+  .stub-hall{
+    font-size: 13px;
+    font-weight:700;
+    margin-top: 6px;
+  }
+  .perf{
+    height: 0;
+    border-top: 2px dashed var(--line);
+    margin: 0 20px;
+  }
+  .not-found{
+    text-align:center;
+    padding: 24px;
+    color: var(--red);
+    font-size: 14px;
+  }
+
+  /* ---- Admin / QR generator (collapsible) ---- */
+  details.admin{
+    margin-top: 56px;
+    width: 100%;
+    max-width: 460px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  details.admin summary{
+    cursor:pointer;
+    padding: 8px 0;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .admin-panel{
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 8px;
+  }
+  .admin-panel input{
+    width: 100%;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    margin-bottom: 8px;
+  }
+  .admin-panel button{
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--ink);
+    color: var(--paper);
+    border:none;
+    border-radius: 5px;
+    padding: 8px 14px;
+    cursor:pointer;
+  }
+  #qrcode{ margin-top: 14px; display:flex; justify-content:center; }
+  #qrcode img{ border: 8px solid white; border-radius: 4px; }
+  .stats{
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 40px;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+
+  <div class="eyebrow">Examination Seating</div>
+  <h1>Find My Seat</h1>
+  <p class="sub">Enter your register number to see your allotted hall and seat number.</p>
+
+  <div class="search-box">
+    <div class="search-row">
+      <input type="text" id="regInput" placeholder="e.g. 25AA002" autocomplete="off" autocapitalize="characters">
+      <button class="find" onclick="findSeat()">Find</button>
+    </div>
+    <div class="hint">Works right after scanning the QR code — no login needed.</div>
+  </div>
+
+  <div class="msg" id="notFoundMsg">No student found with that register number. Please check and try again.</div>
+
+  <div class="ticket-wrap" id="ticketWrap"></div>
+
+  <div class="stats" id="stats"></div>
+
+  <details class="admin">
+    <summary>Exam office — generate QR code</summary>
+    <div class="admin-panel">
+      <p style="margin-top:0">Once this page is hosted (e.g. on GitHub Pages, Netlify, or your college website), paste the live URL below to generate a printable QR code for the notice board.</p>
+      <input type="text" id="urlInput" placeholder="https://yourcollege.edu/seat-finder.html">
+      <button onclick="genQR()">Generate QR</button>
+      <div id="qrcode"></div>
+    </div>
+  </details>
+
+<script>
+// ===== Seating data (embedded — replace this array each exam) =====
+// r = register no, n = name, p = programme, t = term, h = hall, s = seat no
+const STUDENTS = [{"r":"25AA002","n":"ABHAY VINOD","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":1},{"r":"25AL001","n":"AKASH T","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":2},{"r":"25AA003","n":"ADITHYA SANTHOSH KUMAR","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":3},{"r":"25BA001","n":"AMEERA BANU K T","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":4},{"r":"25AL002","n":"AMEENA K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":5},{"r":"25AA004","n":"AJAY KRISHNA K S","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":6},{"r":"25AA005","n":"AMEENA K","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":7},{"r":"25AL003","n":"AYSHA DIYA K S","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":8},{"r":"25AA006","n":"ARYA UNNIKRISHNAN","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":9},{"r":"25AA007","n":"ASHWITHA R","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":10},{"r":"25BA003","n":"ANNA FARVIN.P.J","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":11},{"r":"25AA008","n":"ASWIN JOSEPH","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":12},{"r":"25AL004","n":"DINA FEBIN K T","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":13},{"r":"25AA009","n":"DIYAROY","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":14},{"r":"25AL005","n":"FATHIMA RANA P","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":15},{"r":"25AA010","n":"FARSANA AZEES","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":16},{"r":"25BA004","n":"ARCHANA DAS","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":17},{"r":"25AA011","n":"FATHIMA RAHILA","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":18},{"r":"25AL006","n":"FATHIMATHU NAJWA NAJEEB","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":19},{"r":"25AA012","n":"FATHIMA SAFNASA A","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":20},{"r":"25AL007","n":"FIDHA FATHIMA","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":21},{"r":"25AA013","n":"FATHIMATHU NASEREYA","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":22},{"r":"25BA005","n":"ASMINA SHERIN M S","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":23},{"r":"25AA014","n":"GAYATHRI . M .V","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":24},{"r":"25AL008","n":"FIDHA FATHIMA P","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":25},{"r":"25AA015","n":"GOPIKRISHNAN M","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":26},{"r":"25AL009","n":"FIDHA FATHIMA V K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":27},{"r":"25AA016","n":"HAFIZ MUHAMMED.T.M","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":28},{"r":"25BA006","n":"IBRAHIM AHAMMED FAIZ T","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":29},{"r":"25AA020","n":"MOHAMMED SHAMMAS . P","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":30},{"r":"25AL010","n":"GLORIA OLIVIA RODRIGUES","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":31},{"r":"25AA022","n":"MUHAMMED AZEEM IRSHAD","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":32},{"r":"25AL011","n":"HIDHA FATHIMA P","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":33},{"r":"25AA023","n":"MUHAMMAD SIYAD K P","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":34},{"r":"25BA007","n":"JALWA JALEEL P","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":35},{"r":"25AA024","n":"NASHIFA I","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":36},{"r":"25AA026","n":"RAGHUL R","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":37},{"r":"25AL012","n":"HIDHA FATHIMA.T","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":38},{"r":"25AA027","n":"SAFANA SHERIN A","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":39},{"r":"25BA008","n":"MARY ANJALEENA AROOJA","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":40},{"r":"25AL013","n":"IRFANA SHERIN N","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":41},{"r":"25AA028","n":"SAMIKSHA","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":42},{"r":"25AA029","n":"SHABNA ASIMIN","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":43},{"r":"25AL014","n":"KARTHIKA R","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":44},{"r":"25AA030","n":"SIVANESHWARAN M","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":45},{"r":"25AL015","n":"LAKSHMI K K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":46},{"r":"25AA032","n":"ADIL NAZIM","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":47},{"r":"25AL016","n":"MALAVIKA K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":48},{"r":"25AA033","n":"ANSIL A","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":49},{"r":"25AA035","n":"DHARUNIKA B","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":50},{"r":"25AA036","n":"FATHIMA RAJINA P K","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":51},{"r":"25AL017","n":"MEHMOODA FATHIM K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":52},{"r":"25AA037","n":"IMRAN ALI M P","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":53},{"r":"25AL018","n":"MERCILIN PREETHIKA","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":54},{"r":"25AA038","n":"RAMJITH VS","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":55},{"r":"25AA039","n":"VINITH P","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":56},{"r":"25AA040","n":"SHAMIL FARHAN. E","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":57},{"r":"25AL019","n":"MIDHILAJ AHAMMED","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":58},{"r":"25BA009","n":"MOHITHA  T R","p":"MA English Literature","t":"Third Sem","h":"Hall 1","s":59},{"r":"25AL020","n":"MISIRIYA SHERIN K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":60},{"r":"25AA041","n":"MUTHAMIL P","p":"BA English Literature","t":"Third Sem","h":"Hall 1","s":61},{"r":"24AA001","n":"ABHISHEK S","p":"BA English Literature","t":"Fifth Sem","h":"Hall 1","s":62},{"r":"24AA002","n":"ADHIL K YOONAS","p":"BA English Literature","t":"Fifth Sem","h":"Hall 1","s":63},{"r":"25AL021","n":"MOHAMED JASEEL","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":64},{"r":"24AA004","n":"AKSHAY KUMAR","p":"BA English Literature","t":"Fifth Sem","h":"Hall 1","s":65},{"r":"25AL022","n":"MUHAMMED FASAL K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 1","s":66},{"r":"24AA005","n":"AKSHAYA SHERIN . V","p":"BA English Literature","t":"Fifth Sem","h":"Hall 1","s":67},{"r":"24AA007","n":"ALVIYA C VINCENT","p":"BA English Literature","t":"Fifth Sem","h":"Hall 1","s":68},{"r":"24AA008","n":"AMNA P","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":1},{"r":"25BA010","n":"MUHAMMAD RIYAZ","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":2},{"r":"24AA010","n":"AMRUTH.K.K","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":3},{"r":"25AL023","n":"MUHAMMED SHINAS P P","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":4},{"r":"24AA012","n":"Aqsa ayoob","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":5},{"r":"25AL024","n":"NAHALA NASRIN N","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":6},{"r":"24AA013","n":"FATHIMA LUFTHANA","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":7},{"r":"25AL025","n":"NAHANA FATHIMA C V","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":8},{"r":"24AA015","n":"HIBA THASLIN","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":9},{"r":"25AL026","n":"NAJIYA SHERIN M A","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":10},{"r":"24AA016","n":"HISANA FATHIMA KT","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":11},{"r":"25AL027","n":"NIYA PARVIN P C","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":12},{"r":"24AA020","n":"MISHAB K","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":13},{"r":"25BA011","n":"MUHAMMED ASLAM","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":14},{"r":"24AA022","n":"MUBASHIRA.P","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":15},{"r":"25AL029","n":"RAJASREE H","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":16},{"r":"24AA025","n":"MUHAMMED JASEEL","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":17},{"r":"25AL030","n":"S MENAKA","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":18},{"r":"24AA027","n":"NERIN FATHIMA K","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":19},{"r":"25BA012","n":"NAHANA SHIRIN","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":20},{"r":"24AA029","n":"SABNA FARHANA S","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":21},{"r":"25AL031","n":"SAHLA SHERIN","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":22},{"r":"24AA031","n":"SANA NOURIN.C","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":23},{"r":"25AL032","n":"SHEBIL SHA","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":24},{"r":"24AA032","n":"SHAFIN HARIS","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":25},{"r":"25BA013","n":"PRISCHILLA.A","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":26},{"r":"24AA033","n":"SIVAPRIYA K.B","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":27},{"r":"25AL033","n":"SHIEK ABDUL RASHEED F","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":28},{"r":"24AA034","n":"SIYADH S","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":29},{"r":"25AL034","n":"SHIFNA MARIYAM N","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":30},{"r":"24AA035","n":"Sreekarthika. A. K","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":31},{"r":"25BA014","n":"RABEEHA SHERIN","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":32},{"r":"24AA039","n":"YASAR ARAFATH.S","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":33},{"r":"25AL035","n":"SHIVANANDU K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":34},{"r":"24AA036","n":"THAHANI IZABEL AF","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":35},{"r":"25AL036","n":"THASNEEM T","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":36},{"r":"24AA037","n":"VIGHNESH KUMAR S","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":37},{"r":"25BA015","n":"REHAN M","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":38},{"r":"24AA017","n":"IBNU BASIM T K","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":39},{"r":"25AL037","n":"DHIYA FATHIMA P F","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":40},{"r":"24AA021","n":"MOHAMMED ASHIF M","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":41},{"r":"25AL038","n":"DILNA C","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":42},{"r":"24AA030","n":"SADIYA TS","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":43},{"r":"25BA016","n":"SHAHANA SHERIN S","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":44},{"r":"24AA014","n":"FATHIMA RIFA","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":45},{"r":"25AL040","n":"JAHANA JABIN","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":46},{"r":"24AA011","n":"ANSHIDA T","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":47},{"r":"25AL041","n":"MUHAMMED NIJAS","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":48},{"r":"24AA028","n":"RANA FATHIMA MP","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":49},{"r":"25BA017","n":"SHAMNA SHERIN M A","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":50},{"r":"24AA038","n":"VIVEK M","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":51},{"r":"25AL042","n":"NASEEMA N P","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":52},{"r":"24AA019","n":"MASILAMANI E","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":53},{"r":"25AL043","n":"RIYA NASMIN","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":54},{"r":"24AA026","n":"MUHAMMED SINAN A","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":55},{"r":"25BA018","n":"VARSHA ANEESH","p":"MA English Literature","t":"Third Sem","h":"Hall 2","s":56},{"r":"24AA006","n":"ALBIN.R","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":57},{"r":"25AL044","n":"SUHAINAMOL","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":58},{"r":"24AA009","n":"AMREEN FATHIMA","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":59},{"r":"25AL045","n":"SHABANA YASMIN","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":60},{"r":"24AA024","n":"MUHAMMED AMAN NAFIH","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":61},{"r":"25AL046","n":"MUHAMMED ANSAF K","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":62},{"r":"24AA018","n":"MANISHARMA S","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":63},{"r":"24AA040","n":"VISHNU.K","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":64},{"r":"25AL047","n":"VISHNU OS","p":"B.Sc. Food Science and Nutrition","t":"Third Sem","h":"Hall 2","s":65},{"r":"24AA041","n":"MUHAMMED FAIZ T","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":66},{"r":"24AA101","n":"DHIYA AHALAM","p":"BA English Literature","t":"Fifth Sem","h":"Hall 2","s":67}];
+
+const byReg = {};
+STUDENTS.forEach(s => byReg[s.r.toUpperCase()] = s);
+
+document.getElementById('stats').textContent =
+  `Demo data loaded: ${STUDENTS.length} students across ${[...new Set(STUDENTS.map(s=>s.h))].length} halls`;
+
+function findSeat(){
+  const raw = document.getElementById('regInput').value.trim().toUpperCase();
+  const wrap = document.getElementById('ticketWrap');
+  const msg = document.getElementById('notFoundMsg');
+  wrap.style.display = 'none';
+  msg.style.display = 'none';
+  wrap.innerHTML = '';
+
+  if(!raw) return;
+
+  const s = byReg[raw];
+  if(!s){
+    msg.style.display = 'block';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <div class="ticket">
+      <div class="ticket-main">
+        <p class="name">${escapeHTML(s.n)}</p>
+        <p class="reg">${escapeHTML(s.r)}</p>
+        <div class="field-grid">
+          <div class="field"><div class="label">Programme</div><div class="value">${escapeHTML(s.p)}</div></div>
+          <div class="field"><div class="label">Term</div><div class="value">${escapeHTML(s.t)}</div></div>
+        </div>
+      </div>
+      <div class="ticket-stub">
+        <div class="stub-label">Seat</div>
+        <div class="stub-seat">${s.s}</div>
+        <div class="stub-hall">${escapeHTML(s.h)}</div>
+      </div>
+    </div>`;
+  wrap.style.display = 'block';
+}
+
+function escapeHTML(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+document.getElementById('regInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') findSeat();
+});
+
+function genQR(){
+  const url = document.getElementById('urlInput').value.trim();
+  const box = document.getElementById('qrcode');
+  box.innerHTML = '';
+  if(!url) return;
+  new QRCode(box, { text: url, width: 200, height: 200, colorDark: "#16233F", colorLight: "#ffffff" });
+}
+</script>
+</body>
+</html>
